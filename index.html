@@ -1,123 +1,40 @@
-
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Chatbot</title>
-
-<style>
-body {
-  font-family: Arial;
-}
-
-/* Chat button */
-#chat-btn {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background: #007bff;
-  color: white;
-  padding: 12px;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 18px;
-}
-
-/* Chat box */
-#chatbox {
-  display: none;
-  position: fixed;
-  bottom: 70px;
-  right: 20px;
-  width: 320px;
-  background: white;
-  border: 1px solid #ccc;
-  border-radius: 10px;
-  padding: 10px;
-}
-
-/* Messages */
-#messages {
-  height: 250px;
-  overflow-y: auto;
-  margin-bottom: 10px;
-}
-
-.user {
-  text-align: right;
-  color: blue;
-  margin: 5px;
-}
-
-.bot {
-  text-align: left;
-  color: green;
-  margin: 5px;
-}
-
-/* Input */
-#input {
-  width: 70%;
-  padding: 5px;
-}
-</style>
-</head>
-
-<body>
-
-<!-- Chat Button -->
-<div id="chat-btn" onclick="toggleChat()">💬</div>
-
-<!-- Chat Box -->
-<div id="chatbox">
-  <div id="messages"></div>
-  <input id="input" placeholder="Ask anything..." />
-  <button onclick="sendMessage()">Send</button>
-</div>
-
-<script>
-function toggleChat() {
-  let box = document.getElementById("chatbox");
-  box.style.display = box.style.display === "none" ? "block" : "none";
-}
-
-async function sendMessage() {
-  let inputField = document.getElementById("input");
-  let input = inputField.value;
-  let messages = document.getElementById("messages");
-
-  if (!input) return;
-
-  // Show user message
-  messages.innerHTML += "<div class='user'>You: " + input + "</div>";
-  inputField.value = "";
-
-  // Show thinking
-  messages.innerHTML += "<div class='bot'>Bot: Thinking...</div>";
-
+exports.handler = async function(event) {
   try {
-    let response = await fetch("/.netlify/functions/chat", {
+    const API_KEY = process.env.OPENAI_API_KEY;
+
+    const { message } = JSON.parse(event.body);
+
+    const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
+        "Authorization": `Bearer ${API_KEY}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ message: input })
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        input: message
+      })
     });
 
-    let data = await response.json();
+    const data = await response.json();
 
-    let reply = data.reply;
+    console.log("FULL RESPONSE:", data);
 
-    // Replace "Thinking..."
-    messages.lastChild.innerHTML = "Bot: " + reply;
+    const reply =
+      data?.output?.[0]?.content?.[0]?.text ||
+      "No response from AI";
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ reply })
+    };
 
   } catch (error) {
-    messages.lastChild.innerHTML = "Bot: Error connecting 😢";
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        reply: "Server error 😢"
+      })
+    };
   }
-
-  messages.scrollTop = messages.scrollHeight;
-}
-</script>
-
-</body>
-</html>
+};
